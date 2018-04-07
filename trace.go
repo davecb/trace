@@ -15,6 +15,7 @@ import (
 	"log"
 	"runtime"
 	"time"
+	"os"
 )
 
 // Trace -- the "apptrace(1)" view of a logger
@@ -128,7 +129,7 @@ func (t *RealTrace) pad(depth int) string {
 		offset = 0
 	} else if offset > len(padding) {
 		// we just stop decrementing.  This indicates an extra end
-		//fmt.Fprintf(os.Stderr,"programmer error, offset %d > length %d\n", offset, len(padding))
+		fmt.Fprintf(os.Stderr,"programmer error, offset %d > length %d\n", offset, len(padding))
 		offset = len(padding)
 	}
 	return padding[offset:]
