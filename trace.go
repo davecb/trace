@@ -15,7 +15,6 @@ import (
 	"log"
 	"runtime"
 	"time"
-	"os"
 )
 
 // Trace -- the "apptrace(1)" view of a logger
@@ -60,8 +59,10 @@ func New(fp io.Writer, expand bool) Trace {
 func (t RealTrace) Begin(args ...interface{}) func() {
 	var s string
 
-	pc, _, _, _ := runtime.Caller(2)
+	pc, _, _, _ := runtime.Caller(3)
 	name := runtime.FuncForPC(pc).Name()
+
+
 
 	seperator := ""
 	for _, arg := range args {
@@ -87,7 +88,7 @@ func (t RealTrace) Print(format string) {
 
 // backend does indentation and padding, as per the first param
 func (t RealTrace) backend() {
-	var indent = -1
+	var indent = 0
 	var direction string
 	var msg message
 
@@ -96,7 +97,7 @@ func (t RealTrace) backend() {
 		switch msg.r {
 		case '>':
 			direction = "begin "
-			indent++
+			//indent++
 		case '<':
 			direction = "end "
 		case '|':
@@ -109,6 +110,9 @@ func (t RealTrace) backend() {
 			// Trace succinctly to expand later, typically
 			// to a logfile
 			t.log.Printf("%c%s", msg.r, msg.s)
+		}
+		if msg.r == '>' {
+			indent++
 		}
 		if msg.r == '<' {
 			indent--
@@ -129,10 +133,42 @@ func (t *RealTrace) pad(depth int) string {
 		offset = 0
 	} else if offset > len(padding) {
 		// we just stop decrementing.  This indicates an extra end
-		fmt.Fprintf(os.Stderr,"programmer error, offset %d > length %d\n", offset, len(padding))
-		offset = len(padding)
+		panic(fmt.Sprintf("programmer error, offset %d > length %d\n",
+			offset, len(padding)))
 	}
 	return padding[offset:]
+}
+
+// new code for finding the function name, to avoid "runtime.goexit"
+func showStackFrames() {
+	// Ask runtime.Callers for up to 10 pcs, including runtime.Callers itself.
+	pc2 := make([]uintptr, 10)
+	n := runtime.Callers(0, pc2)
+	if n == 0 {
+		// No pcs available. Stop now.
+		// This can happen if the first argument to runtime.Callers is large.
+		log.Print("- more: not found\n")
+		return
+	}
+
+	pc2 = pc2[:n] // pass only valid pcs to runtime.CallersFrames
+	frames := runtime.CallersFrames(pc2)
+
+	// Loop to get frames.
+	// A fixed number of pcs can expand to an indefinite number of Frames.
+	for {
+		frame, more := frames.Next()
+		// To keep this example's output stable
+		// even if there are changes in the testing package,
+		// stop unwinding when we leave package runtime.
+		//if !strings.Contains(frame.File, "runtime/") {
+		//	break
+		//}
+		log.Printf("- more:%v | %s\n", more, frame.Function)
+		if !more {
+			break
+		}
+	}
 }
 
 // FakeTrace does very little
